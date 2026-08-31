@@ -153,7 +153,6 @@ reports_generated/
 *.backup
 *_backup.py
 *before*.py
-*pre*.py
 patch_*.py
 audit_*.py
 inspect_*.py
@@ -182,3 +181,6 @@ V0.1_STAGE_COPY_HASHES.csv
 # Temporary sanitized source staging
 src/staging/
 V0.1_FINAL_PUBLICATION_SCAN.txt
+*_pre_*.py
+*_pre.py
+*.pre.py
