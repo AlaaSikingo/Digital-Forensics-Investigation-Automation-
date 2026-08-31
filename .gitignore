@@ -1,0 +1,184 @@
+﻿# ============================================================
+# Local DFIR AI Investigation Assistant
+# Public repository exclusions
+# ============================================================
+
+# ------------------------------------------------------------
+# Python
+# ------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ------------------------------------------------------------
+# Virtual environments
+# ------------------------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+
+# ------------------------------------------------------------
+# IDE / editor
+# ------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.vs/
+
+# ------------------------------------------------------------
+# OS-generated files
+# ------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ------------------------------------------------------------
+# Secrets / credentials / local configuration
+# ------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+
+config.local.*
+settings.local.*
+secrets.*
+credentials.*
+
+# ------------------------------------------------------------
+# Forensic evidence images
+# Evidence must never be committed to this repository.
+# ------------------------------------------------------------
+*.E01
+*.E02
+*.E03
+*.E04
+*.e01
+*.e02
+*.e03
+*.e04
+*.dd
+*.raw
+*.img
+*.vhd
+*.vhdx
+*.ad1
+*.aff
+*.aff4
+*.mem
+*.dmp
+
+evidence/
+test/images/
+test/evidence/
+test/kape_offline/
+
+# ------------------------------------------------------------
+# Runtime case workspaces
+# ------------------------------------------------------------
+workspace/
+cases/
+.jobs/
+
+# ------------------------------------------------------------
+# DFIR databases
+# ------------------------------------------------------------
+evidence.db
+findings.db
+correlation.db
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# ------------------------------------------------------------
+# Qdrant / vector storage
+# ------------------------------------------------------------
+qdrant_storage/
+storage/
+snapshots/
+
+# ------------------------------------------------------------
+# Local AI models / model caches
+# ------------------------------------------------------------
+models/
+ollama/
+*.gguf
+*.safetensors
+
+# ------------------------------------------------------------
+# Third-party DFIR binaries
+# Users must obtain tools from their original publishers.
+# ------------------------------------------------------------
+tools/
+bin/
+*.exe
+*.dll
+*.msi
+
+# ------------------------------------------------------------
+# Historical DFIR corpus
+# Historical reports are context only and are not distributed.
+# ------------------------------------------------------------
+knowledge/
+corpus/
+reports/
+historical_reports/
+
+# ------------------------------------------------------------
+# Generated investigation output
+# ------------------------------------------------------------
+output/
+outputs/
+reports_generated/
+*.log
+
+# ------------------------------------------------------------
+# Local development / recovery files
+# ------------------------------------------------------------
+*.bak
+*.backup
+*_backup.py
+*before*.py
+*pre*.py
+patch_*.py
+audit_*.py
+inspect_*.py
+migrate_*.py
+repair_*.py
+restore_*.py
+cleanup_*.py
+diagnose_*.py
+
+# ------------------------------------------------------------
+# PowerShell serialization
+# ------------------------------------------------------------
+*.clixml
+
+# ------------------------------------------------------------
+# Pre-release sanitization/audit artifacts
+# Local review only - never publish.
+# ------------------------------------------------------------
+V0.1_CANDIDATE_MANIFEST.txt
+V0.1_SECURITY_SCAN.txt
+V0.1_HIGH_RISK_REVIEW.txt
+V0.1_SANITIZATION_PLAN.txt
+V0.1_SECOND_PASS_SECURITY_SCAN.txt
+V0.1_STAGE_COPY_HASHES.csv
+
+# Temporary sanitized source staging
+src/staging/
+V0.1_FINAL_PUBLICATION_SCAN.txt
