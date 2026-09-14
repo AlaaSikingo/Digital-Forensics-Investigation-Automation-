@@ -653,8 +653,7 @@ try:
             run_id,
             finding_count
         FROM runs
-        WHERE engine_version = '1.0'
-          AND status = 'COMPLETED'
+        WHERE status = 'COMPLETED'
         ORDER BY completed_utc DESC
         LIMIT 1
         """
@@ -1226,6 +1225,19 @@ try:
         )
 
 
+    if CASE == "CASE-001" and package_count != 27:
+        raise RuntimeError(
+            f"Expected 27 context packages, "
+            f"got {package_count}"
+        )
+
+
+    if CASE == "CASE-001" and evidence_links_total != 78:
+        raise RuntimeError(
+            "Expected 78 finding evidence "
+            f"references, got "
+            f"{evidence_links_total}"
+        )
 
 
 finally:

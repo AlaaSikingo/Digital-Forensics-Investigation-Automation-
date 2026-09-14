@@ -36,10 +36,10 @@ CORRELATION_DB = (
     / "correlation.db"
 )
 
-ENGINE_VERSION = "1.0"
-RULE_VERSION = "1.0"
+ENGINE_VERSION = "1.2"
+RULE_VERSION = "1.2"
 
-EXPECTED_EVIDENCE_EVENTS = None
+EXPECTED_EVIDENCE_EVENTS = 975501 if CASE == "CASE-001" else None
 
 GENERIC_WINDOW_SECONDS = 1.0
 HAYABUSA_WINDOW_SECONDS = 2.0
@@ -115,23 +115,87 @@ def path_keys(row):
     return values
 
 
-def executable_keys(row):
+def executable_keys(
+    row,
+    event_attributes=None,
+):
     values = set()
 
-    executable = norm_executable(
+    def add_executable_value(value):
+        value = norm_executable(value)
+
+        if not value:
+            return
+
+        values.add(value)
+
+        # Windows Prefetch:
+        # VMTOOLSIO.EXE-B05FE979.pf
+        # -> vmtoolsio.exe
+        match = re.match(
+            r"^(.+?\.exe)-[0-9a-f]{8}\.pf$",
+            value,
+            re.IGNORECASE,
+        )
+
+        if match:
+            values.add(
+                match.group(1).lower()
+            )
+
+    add_executable_value(
         row["executable"]
     )
 
-    if executable:
-        values.add(executable)
-
     for key in ("path", "target_path"):
-        value = norm_executable(
+        add_executable_value(
             row[key]
         )
 
-        if value:
-            values.add(value)
+    event_attributes = (
+        event_attributes or {}
+    )
+
+    # EvtxECmd Event 7045 commonly stores
+    # the installed service ImagePath here.
+    for key in (
+        "executableinfo",
+        "imagepath",
+    ):
+        add_executable_value(
+            event_attributes.get(
+                key,
+                ""
+            )
+        )
+
+
+    # RECmd registry values may contain executable
+    # paths inside descriptive text, for example:
+    #
+    # Extension: exe Absolute path:
+    # Example path: C:\Evidence\example.exe
+    #
+    # Extract only Windows-path tokens ending in .exe.
+    try:
+        registry_value_data = (
+            row["registry_value_data"]
+            if "registry_value_data" in row.keys()
+            else None
+        )
+    except Exception:
+        registry_value_data = None
+
+    if registry_value_data:
+
+        for match in re.finditer(
+            r"(?i)(?:[A-Z]:\\|\\Device\\)"
+            r"[^\r\n\"';,]*?\.exe\b",
+            str(registry_value_data),
+        ):
+            add_executable_value(
+                match.group(0)
+            )
 
     return values
 
@@ -910,14 +974,21 @@ def correlate_generic_anchors(
             executable,
             path,
             target_path,
+            registry_value_data,
             windows_event_id,
             provider,
             channel
         FROM events
-        WHERE source_tool IN (
-            'pecmd',
-            'recmd',
-            'lecmd'
+        WHERE (
+            source_tool IN (
+                'pecmd',
+                'recmd',
+                'lecmd'
+            )
+            OR (
+                source_tool = 'evtxecmd'
+                AND windows_event_id = '7045'
+            )
         )
         ORDER BY timestamp_sort
         """
@@ -925,6 +996,16 @@ def correlate_generic_anchors(
 
     print(
         f"Generic anchors: {len(anchors):,}"
+    )
+
+    generic_attributes = load_attributes(
+        evidence,
+        (
+            "pecmd",
+            "recmd",
+            "lecmd",
+            "evtxecmd",
+        ),
     )
 
     path_edges = 0
@@ -945,7 +1026,11 @@ def correlate_generic_anchors(
         )
 
         anchor_executables = executable_keys(
-            anchor
+            anchor,
+            generic_attributes.get(
+                anchor["event_uid"],
+                {},
+            ),
         )
 
         if (

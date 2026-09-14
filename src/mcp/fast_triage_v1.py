@@ -1,4 +1,4 @@
-﻿import argparse
+import argparse
 import hashlib
 import json
 import sqlite3
@@ -8,7 +8,9 @@ from pathlib import Path
 
 VERSION = "1.0"
 
-WORKSPACE_ROOT = (Path(__file__).resolve().parents[2] / "workspace")
+WORKSPACE_ROOT = Path(
+    str(__import__("pathlib").Path(__file__).resolve().parents[2] / "workspace")
+)
 
 
 def utc_now():
@@ -96,11 +98,6 @@ def route_finding(row):
         or "UNKNOWN"
     ).upper()
 
-    finding_type = (
-        row["finding_type"]
-        or ""
-    )
-
     families = int(
         row[
             "independent_family_count"
@@ -117,10 +114,17 @@ def route_finding(row):
 
     reasons = []
 
-    # --------------------------------------------------------
-    # Routing score is NOT a maliciousness score.
-    # It only determines investigation effort.
-    # --------------------------------------------------------
+    # Investigation-effort score only.
+    # This is never a maliciousness score.
+    #
+    # Routing uses generic properties only:
+    #   - normalized severity
+    #   - independent evidence-family count
+    #   - evidence-set size
+    #
+    # No finding type, executable, Event ID,
+    # product, case, user or detection name
+    # participates in routing.
 
     severity_points = {
         "CRITICAL": 120,
@@ -137,99 +141,45 @@ def route_finding(row):
         0,
     )
 
-
     if severity in {
         "CRITICAL",
         "HIGH",
     }:
-
         reasons.append(
-            "High detection severity "
-            "requires deep review"
+            "Higher-severity evidence requires deeper review"
         )
-
 
     if families >= 2:
-
         score += 25
-
         reasons.append(
-            "Multiple independent "
-            "evidence families"
+            "Multiple independent evidence families"
         )
-
-
-    if (
-        finding_type
-        ==
-        "CROSS_ARTIFACT_EXECUTION_LEAD"
-    ):
-
-        score += 15
-
-        reasons.append(
-            "Cross-artifact execution "
-            "correlation"
-        )
-
-
-    if (
-        finding_type
-        ==
-        "HAYABUSA_DETECTION_LEAD"
-    ):
-
-        score += 5
-
-        reasons.append(
-            "Detection-derived "
-            "investigation lead"
-        )
-
 
     if evidence_count >= 10:
-
         score += 5
-
         reasons.append(
-            "Larger supporting "
-            "evidence set"
+            "Larger supporting evidence set"
         )
-
-
-    # --------------------------------------------------------
-    # Routing policy
-    # --------------------------------------------------------
 
     if severity in {
         "CRITICAL",
         "HIGH",
     }:
-
         route = "DEEP_8B"
 
-
-    elif families >= 2:
-
+    elif (
+        families >= 2
+        or severity == "MEDIUM"
+    ):
         route = "FAST_4B"
-
-
-    elif severity == "MEDIUM":
-
-        route = "FAST_4B"
-
 
     else:
-
         route = "STORE_ONLY"
-
 
     if not reasons:
         reasons.append(
-            "No deep-analysis routing "
-            "criteria met"
+            "No higher-effort generic routing criteria met"
         )
-
 
     return {
         "planned_route":

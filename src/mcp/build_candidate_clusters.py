@@ -33,8 +33,8 @@ CORRELATION_DB = (
     / "correlation.db"
 )
 
-CORRELATION_VERSION = "1.0"
-CANDIDATE_VERSION = "1.0"
+CORRELATION_VERSION = "1.2"
+CANDIDATE_VERSION = "1.1"
 
 FAMILY_MAP = {
     "evtxecmd": "EVTX",
@@ -146,6 +146,12 @@ try:
     )
 
 
+    if CASE == "CASE-001" and evidence_count != 975501:
+        raise RuntimeError(
+            f"Expected 975501 evidence events, "
+            f"got {evidence_count}"
+        )
+
     if evidence_count <= 0:
         raise RuntimeError(
             "Evidence database contains no events."
@@ -250,6 +256,13 @@ try:
         f"{len(accepted):,}"
     )
 
+
+    if CASE == "CASE-001":
+        if len(accepted) != 42:
+            raise RuntimeError(
+                "Expected 42 cross-artifact MEDIUM "
+                f"edges, got {len(accepted)}"
+            )
 
 
     uf = UnionFind()
@@ -458,7 +471,9 @@ try:
 
 
                 identity = (
-                    CANDIDATE_VERSION
+                    run_id
+                    + "|"
+                    + CANDIDATE_VERSION
                     + "|"
                     + "|".join(
                         sorted(members)

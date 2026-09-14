@@ -1,186 +1,178 @@
-﻿# ============================================================
-# Local DFIR AI Investigation Assistant
-# Public repository exclusions
-# ============================================================
+# ==========================================
+# DFIR-AI public repository exclusions
+# ==========================================
 
-# ------------------------------------------------------------
 # Python
-# ------------------------------------------------------------
 __pycache__/
 *.py[cod]
-*$py.class
+*.pyo
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-.coverage
-htmlcov/
 
-# ------------------------------------------------------------
 # Virtual environments
-# ------------------------------------------------------------
 .venv/
 venv/
 env/
 ENV/
 
-# ------------------------------------------------------------
-# IDE / editor
-# ------------------------------------------------------------
+# IDE / OS
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
-.vs/
-
-# ------------------------------------------------------------
-# OS-generated files
-# ------------------------------------------------------------
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# ------------------------------------------------------------
-# Secrets / credentials / local configuration
-# ------------------------------------------------------------
+# Local secrets / config
 .env
 .env.*
-!.env.example
-*.pem
-*.key
-*.p12
-*.pfx
-*.jks
-
-config.local.*
-settings.local.*
-secrets.*
+*.env
+secrets/
+secret/
+credentials/
 credentials.*
+*.key
+*.pem
+*.pfx
+*.p12
+*.jks
+*.keystore
 
-# ------------------------------------------------------------
-# Forensic evidence images
-# Evidence must never be committed to this repository.
-# ------------------------------------------------------------
-*.E01
-*.E02
-*.E03
-*.E04
-*.e01
-*.e02
-*.e03
-*.e04
-*.dd
-*.raw
-*.img
-*.vhd
-*.vhdx
+# Logs
+*.log
+logs/
+
+# DFIR evidence images / containers
 *.ad1
+*.AD1
+*.e01
+*.E01
+*.ex01
+*.Ex01
+*.dd
+*.DD
+*.raw
+*.RAW
+*.img
+*.IMG
 *.aff
+*.AFF
 *.aff4
+*.AFF4
+*.vhd
+*.VHD
+*.vhdx
+*.VHDX
+*.vmdk
+*.VMDK
 *.mem
+*.MEM
 *.dmp
+*.DMP
 
+# Evidence / test evidence
 evidence/
-test/images/
 test/evidence/
-test/kape_offline/
+test/images/
+samples/evidence/
+uploads/
 
-# ------------------------------------------------------------
-# Runtime case workspaces
-# ------------------------------------------------------------
+# Case workspaces / jobs / generated case data
 workspace/
-cases/
+**/CASE-*/
 .jobs/
-
-# ------------------------------------------------------------
-# DFIR databases
-# ------------------------------------------------------------
-evidence.db
-findings.db
-correlation.db
+jobs/
 *.db
 *.db-shm
 *.db-wal
-*.sqlite
-*.sqlite3
+triage.db
+evidence.db
+correlation.db
+findings.db
 
-# ------------------------------------------------------------
+# Generated current-case telemetry / investigation outputs
+**/investigation/
+**/.pipeline_state/
+**/report/
+**/reports/
+*_DFIR_Report*.md
+*_DFIR_Report*.html
+*_DFIR_Report*.pdf
+system_telemetry.json
+sam_telemetry.json
+
 # Qdrant / vector storage
-# ------------------------------------------------------------
 qdrant_storage/
-storage/
-snapshots/
+qdrant/
+vector_db/
+vector_store/
+storage/qdrant/
 
-# ------------------------------------------------------------
-# Local AI models / model caches
-# ------------------------------------------------------------
-models/
+# Ollama / local AI model storage
+.ollama/
 ollama/
+models/
+model_cache/
 *.gguf
 *.safetensors
 
-# ------------------------------------------------------------
-# Third-party DFIR binaries
-# Users must obtain tools from their original publishers.
-# ------------------------------------------------------------
+# Historical DFIR corpora / knowledge reports
+knowledge/reports/
+knowledge/corpus/
+historical_reports/
+corpus/
+
+# Third-party tools/binaries - review licenses before redistribution
 tools/
 bin/
+vendor/
+third_party/
 *.exe
 *.dll
+*.sys
 *.msi
 
-# ------------------------------------------------------------
-# Historical DFIR corpus
-# Historical reports are context only and are not distributed.
-# ------------------------------------------------------------
-knowledge/
-corpus/
-reports/
-historical_reports/
-
-# ------------------------------------------------------------
-# Generated investigation output
-# ------------------------------------------------------------
+# Build/output/temp
+dist/
+build/
+out/
 output/
-outputs/
-reports_generated/
-*.log
+tmp/
+temp/
+.cache/
+coverage/
+htmlcov/
 
-# ------------------------------------------------------------
-# Local development / recovery files
-# ------------------------------------------------------------
+# Dashboard/server runtime files
+dashboard_stdout.log
+dashboard_stderr.log
+
+# Development backups / temporary patches
 *.bak
 *.backup
-*_backup.py
-*before*.py
-patch_*.py
-audit_*.py
-inspect_*.py
-migrate_*.py
-repair_*.py
-restore_*.py
-cleanup_*.py
-diagnose_*.py
+*.old
+*.orig
+*~
+*_before_*
+*_backup_*
+backup/
+backups/
+archive_pre_v2/
+patches/
+audit/
+audits/
 
-# ------------------------------------------------------------
-# PowerShell serialization
-# ------------------------------------------------------------
-*.clixml
+# Public staging / local publication artifacts
+DFIR-AI-PUBLIC/
+release_candidate/
+release_audit/
+publication_audit/
 
-# ------------------------------------------------------------
-# Pre-release sanitization/audit artifacts
-# Local review only - never publish.
-# ------------------------------------------------------------
-V0.1_CANDIDATE_MANIFEST.txt
-V0.1_SECURITY_SCAN.txt
-V0.1_HIGH_RISK_REVIEW.txt
-V0.1_SANITIZATION_PLAN.txt
-V0.1_SECOND_PASS_SECURITY_SCAN.txt
-V0.1_STAGE_COPY_HASHES.csv
-
-# Temporary sanitized source staging
+# Local publication / V0.1 audit artifacts
+V0.1_*
 src/staging/
-V0.1_FINAL_PUBLICATION_SCAN.txt
-*_pre_*.py
-*_pre.py
-*.pre.py
+run_isolated_benchmark_after_sysinternals.ps1
+release_audit/
+archive_pre_v2/

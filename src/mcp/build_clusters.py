@@ -35,10 +35,10 @@ CORRELATION_DB = (
     / "correlation.db"
 )
 
-ENGINE_VERSION = "1.0"
-CLUSTER_VERSION = "1.0"
+ENGINE_VERSION = "1.2"
+CLUSTER_VERSION = "1.1"
 
-EXPECTED_EVIDENCE_EVENTS = None
+EXPECTED_EVIDENCE_EVENTS = 975501 if CASE == "CASE-001" else None
 
 
 FAMILY_MAP = {
@@ -908,7 +908,9 @@ try:
 
 
                 cluster_identity = (
-                    CLUSTER_VERSION
+                    correlation_run_id
+                    + "|"
+                    + CLUSTER_VERSION
                     + "|"
                     + "|".join(
                         sorted(

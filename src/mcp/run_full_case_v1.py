@@ -1,9 +1,11 @@
-﻿import argparse
+import argparse
 import subprocess
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(
+    str(__import__("pathlib").Path(__file__).resolve().parents[2] / "src" / "mcp")
+)
 
 PYTHON = (
     ROOT
@@ -155,10 +157,12 @@ if result.returncode != 0:
 
 
 report = (
-    (Path(__file__).resolve().parents[2] / "workspace")
+    Path(
+        str(__import__("pathlib").Path(__file__).resolve().parents[2] / "workspace")
+    )
     / CASE
     / "report"
-    / f"{CASE}_DFIR_Report.md"
+    / f"{CASE}_DFIR_Report_V2.md"
 )
 
 

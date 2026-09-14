@@ -1,4 +1,4 @@
-﻿import argparse
+import argparse
 import json
 import re
 import sqlite3
@@ -6,7 +6,9 @@ from collections import Counter
 from pathlib import Path
 
 
-WORKSPACE_ROOT = (Path(__file__).resolve().parents[2] / "workspace")
+WORKSPACE_ROOT = Path(
+    str(__import__("pathlib").Path(__file__).resolve().parents[2] / "workspace")
+)
 
 
 ASSESSMENT_RANK = {
@@ -1063,9 +1065,7 @@ findings = source.get(
 
 
 if not findings:
-    raise RuntimeError(
-        "No findings available."
-    )
+    findings = []
 
 
 assessment_counts = Counter()
@@ -1205,6 +1205,46 @@ for item in findings:
         fast_count += 1
 
 
+
+    # -------------------------------------------------------------
+    # Deterministic finding facts
+    #
+    # These summaries originate from current-case deterministic
+    # findings, not from historical RAG and not from an LLM.
+    # Preserve them as grounded observed facts when event_uids exist.
+    # -------------------------------------------------------------
+
+    finding_type = (
+        item.get("finding_type")
+        or ""
+    )
+
+    deterministic_summary = str(
+        item.get("summary")
+        or ""
+    ).strip()
+
+    if (
+        event_uids
+        and deterministic_summary
+        and finding_type in {
+            "POWERSHELL_HISTORY_LEAD",
+            "CORE_CROSS_ARTIFACT_LEAD",
+            "CROSS_ARTIFACT_ACTIVITY_LEAD",
+        }
+    ):
+        observed_facts.append({
+            "fact":
+                deterministic_summary,
+
+            "event_uids":
+                event_uids,
+
+            "source":
+                "DETERMINISTIC_FINDING_SUMMARY",
+        })
+
+
     key_findings.append({
 
         "finding_id":
@@ -1264,6 +1304,19 @@ key_findings.sort(
     ),
     reverse=True,
 )
+
+
+# Generic empty-investigation handling.
+#
+# A valid evidence set may produce zero investigation findings.
+# That is not a pipeline failure and must not be interpreted as benign.
+# Preserve the absence of actionable findings as insufficient evidence.
+#
+if not assessment_counts:
+    assessment_counts["INSUFFICIENT_EVIDENCE"] = 1
+
+if not priority_counts:
+    priority_counts["LOW"] = 1
 
 
 overall_assessment = max(
@@ -1360,7 +1413,7 @@ payload = {
 
     "executive_summary":
         (
-            f"Analysis of the available E01-derived forensic evidence "
+            f"Analysis of the available current-case forensic evidence "
             f"identified {len(findings)} investigation findings grounded "
             f"in {len(all_event_uids)} unique event_uids. "
             f"The evidence includes investigation activity associated with "
@@ -1400,14 +1453,14 @@ payload = {
 
     "possible_related_activity_note":
         (
-            "No sufficiently grounded E01-only temporal relationship "
+            "No sufficiently grounded current-case temporal relationship "
             "sequence could be constructed automatically. Relationships "
             "between findings require analyst validation using "
             "current-case evidence and event_uid grounding."
         ),
 
     "alternative_explanations": [
-        "Administrative activity may explain some account, password-reset, service, RDP, or WMI events.",
+        "Legitimate or administrative activity may explain some observed current-case events. Any such explanation must be validated against the available artifact families and referenced event_uid evidence.",
         "Legitimate Windows execution may explain some cross-artifact executable correlations.",
         "Detection-rule severity alone does not establish malicious activity."
     ],
@@ -1437,7 +1490,7 @@ payload = {
 
     "analyst_conclusion":
         (
-            f"The available E01-derived evidence contains "
+            f"The available current-case evidence contains "
             f"{assessment_counts.get('SUSPICIOUS', 0)} findings assessed "
             f"as SUSPICIOUS and "
             f"{assessment_counts.get('NEEDS_REVIEW', 0)} findings requiring "

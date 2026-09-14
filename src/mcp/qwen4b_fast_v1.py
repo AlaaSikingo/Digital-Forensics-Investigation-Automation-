@@ -1,4 +1,4 @@
-﻿import argparse
+import argparse
 import json
 import sqlite3
 import time
@@ -9,7 +9,9 @@ from pathlib import Path
 MODEL = "qwen3:4b-instruct"
 OLLAMA_URL = "http://localhost:11434"
 
-WORKSPACE_ROOT = (Path(__file__).resolve().parents[2] / "workspace")
+WORKSPACE_ROOT = Path(
+    str(__import__("pathlib").Path(__file__).resolve().parents[2] / "workspace")
+)
 
 REQUEST_TIMEOUT = 600
 MAX_RETRIES = 2
@@ -185,7 +187,10 @@ def _short(value, limit=220):
     return value[:limit] + "...[truncated]"
 
 
-def _selected_attributes(attributes):
+def _selected_attributes(
+    attributes,
+    max_chars=900,
+):
 
     if not isinstance(
         attributes,
@@ -193,55 +198,137 @@ def _selected_attributes(attributes):
     ):
         return {}
 
-    keywords = (
-        "record",
-        "logon",
-        "user",
-        "account",
-        "member",
-        "group",
-        "service",
-        "image",
-        "process",
-        "command",
-        "parent",
-        "source",
-        "destination",
-        "address",
-        "ip",
-        "port",
-        "task",
-        "object",
-        "target",
-        "provider",
-    )
-
     selected = {}
+    used = 0
 
-    for key, value in attributes.items():
+    for key in sorted(
+        attributes,
+        key=lambda value: str(value),
+    ):
 
-        lowered = str(key).lower()
+        value = attributes[key]
 
-        if not any(
-            keyword in lowered
-            for keyword in keywords
-        ):
+        if value is None:
             continue
 
-        clean_value = _short(
+        if isinstance(
             value,
-            180,
-        )
+            (dict, list, tuple),
+        ):
+            try:
+                clean_value = json.dumps(
+                    value,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+            except Exception:
+                clean_value = str(value)
+        else:
+            clean_value = str(value)
+
+        clean_value = clean_value.strip()
 
         if not clean_value:
             continue
 
-        selected[str(key)] = clean_value
+        clean_value = _short(
+            clean_value,
+            260,
+        )
 
-        if len(selected) >= 10:
+        entry_size = (
+            len(str(key))
+            + len(clean_value)
+        )
+
+        if (
+            selected
+            and used + entry_size > max_chars
+        ):
             break
 
+        selected[
+            str(key)
+        ] = clean_value
+
+        used += entry_size
+
     return selected
+
+
+def _compact_correlation_edges(
+    edges,
+    max_chars=1800,
+):
+
+    if not isinstance(
+        edges,
+        list,
+    ):
+        return []
+
+    result = []
+    used = 0
+
+    for edge in edges:
+
+        if not isinstance(
+            edge,
+            dict,
+        ):
+            continue
+
+        compact = {}
+
+        for key in sorted(
+            edge,
+            key=lambda value: str(value),
+        ):
+
+            value = edge[key]
+
+            if value is None:
+                continue
+
+            if isinstance(
+                value,
+                (dict, list, tuple),
+            ):
+                try:
+                    value = json.dumps(
+                        value,
+                        ensure_ascii=False,
+                        separators=(",", ":"),
+                    )
+                except Exception:
+                    value = str(value)
+
+            compact[
+                str(key)
+            ] = _short(
+                value,
+                220,
+            )
+
+        encoded = json.dumps(
+            compact,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+
+        if (
+            result
+            and used + len(encoded) > max_chars
+        ):
+            break
+
+        result.append(
+            compact
+        )
+
+        used += len(encoded)
+
+    return result
 
 
 def build_fast_package(package):
@@ -577,6 +664,14 @@ def build_fast_package(package):
 
         "source_context":
             compact_source_context,
+
+        "correlation_edges":
+            _compact_correlation_edges(
+                package.get(
+                    "correlation_edges",
+                    [],
+                )
+            ),
 
         "evidence":
             compact_evidence,

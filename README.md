@@ -1,210 +1,302 @@
-﻿# DFIR-AI
+# DFIR-AI v2.0
 
-Local AI-Assisted Digital Forensics and Incident Response Investigation Platform.
+**Local AI-Assisted Digital Forensics & Incident Response Investigation Platform**
 
-> Status: V0.1 Preview / Active Development
+DFIR-AI is a local, evidence-grounded DFIR investigation workflow designed to reduce large forensic datasets into a bounded, reviewable investigation set while preserving provenance and keeping original evidence read-only.
 
-DFIR-AI is a fully local investigation pipeline designed to assist digital forensics and incident response workflows while preserving forensic evidence integrity, provenance, and analyst control.
+> **Important:** AI-assisted forensic investigation; analyst validation required. Original evidence remains read-only.
 
-## Core Design Principles
+## V2 Highlights
 
-- Original forensic evidence is never modified.
-- Current-case evidence is authoritative.
-- Historical DFIR reports are contextual knowledge only.
-- RAG similarity is not proof of malicious activity.
-- Detection titles and severity values are not proof of malicious activity.
-- Every factual finding preserves its event_uid and provenance.
-- Hayabusa and EvtxECmd are treated as the same EVTX evidence family.
-- Local AI inference runs sequentially.
-- Deterministic processing is preferred wherever practical.
-- AI output is investigative assistance, not final analyst determination.
+- Live local web dashboard for case execution and investigation monitoring
+- Evidence upload or existing-image selection
+- Supported evidence containers: **AD1 / E01 / DD / RAW / IMG**
+- Live pipeline progress and current-stage visibility
+- Stop Investigation control for the active case process tree
+- Early deterministic **System Telemetry** and **SAM Telemetry**
+- Artifact inventory and on-demand artifact inspection
+- Deterministic normalization, correlation, clustering, and finding generation
+- Bounded AI routing:
+  - `FAST_4B` → local Qwen 4B
+  - `DEEP_8B` → selective local Qwen 8B
+  - `STORE_ONLY` → no LLM
+- Historical DFIR RAG used as investigation context only
+- Deterministic case synthesis
+- Final DFIR Report V2
+- Sidebar workflow visualization with a 3-second sequential display delay
 
-## Investigation Pipeline
+## Dashboard
 
-Evidence Image
-      |
-      v
+![DFIR-AI v2 Dashboard](docs/images/dashboard-v2.png)
+
+The dashboard is a local web UI served from `127.0.0.1`. It does not replace forensic validation; it visualizes the real pipeline state, current-case evidence, deterministic telemetry, routing, findings, and report progress.
+
+## Architecture
+
+```text
+Forensic Image / Container
+        |
+        v
+Evidence Reader
+        |
+        v
+Artifact Acquisition Profile
+        |
+        v
 Artifact Collection
-      |
-      v
-Forensic Parsing
-      |
-      v
+        |
+        v
+Parsing
+        |
+        v
 Normalization
-      |
-      v
-SQLite Evidence Database
-      |
-      v
-Correlation
-      |
-      v
-Evidence Clustering
-      |
-      v
-Findings
-      |
-      v
-Investigation Contexts
-      |
-      v
-Fast Local AI Triage
-      |
-      v
-Selective Deep AI Investigation
-      |
-      v
-Historical DFIR RAG Enrichment
-      |
-      v
-Deterministic Case Synthesis
-      |
-      v
-Final DFIR Report
+        |
+        v
+Evidence DB + Provenance
+        |
+        +--------------------+
+        |                    |
+        v                    v
+System Telemetry         SAM Telemetry
+        |                    |
+        +---------+----------+
+                  |
+                  v
+             Correlation
+                  |
+                  v
+              Clustering
+                  |
+                  v
+               Findings
+                  |
+                  v
+        Investigation Context
+                  |
+                  v
+           Deterministic Triage
+            /        |        \
+           /         |         \
+      FAST_4B     DEEP_8B   STORE_ONLY
+         |           |           |
+      Qwen 4B   Deep Prep     No LLM
+                     |
+                  Qwen 8B
+                     |
+          +----------+----------+
+          |                     |
+          v                     v
+       DFIR RAG          Current-Case Evidence
+          \                     /
+           \                   /
+            v                 v
+           Deterministic Synthesis
+                    |
+                    v
+             Final DFIR Report V2
+```
 
-## Supported DFIR Components
+## Pipeline Stages
 
-The current implementation integrates or supports:
+The V2 workflow is organized as:
 
-- MFTECmd
-- EvtxECmd
-- PECmd
-- RECmd
-- LECmd
-- Hayabusa
-- KAPE
-- The Sleuth Kit
-- SQLite
-- Qwen local models through Ollama
-- Qdrant
-- nomic-embed-text
+1. Evidence Upload
+2. Prepare Case
+3. Artifact Collection
+4. Parsing
+5. Normalization
+6. System Telemetry
+7. SAM Telemetry
+8. Correlation
+9. Clustering
+10. Findings
+11. Investigation Context
+12. Fast Triage
+13. Qwen 4B
+14. RAG
+15. Deep Preparation
+16. Selective Qwen 8B
+17. Synthesis
+18. Final Report
 
-Third-party forensic tools, binaries, AI models, and evidence images are not distributed with this repository.
+The dashboard visualization may intentionally delay the left-side completion animation by 3 seconds per displayed step. This is a **visualization effect only** and does not delay the forensic pipeline.
 
-## Local AI Investigation
+## Evidence Handling
 
-DFIR-AI uses a two-stage local AI workflow.
+DFIR-AI is designed around forensic safety:
 
-### Fast Triage
+- Original evidence is never intentionally modified.
+- Current-case evidence is authoritative.
+- Every normalized case fact should retain `event_uid` and provenance.
+- Correlation does not equal causation.
+- Detection title or severity alone does not establish maliciousness.
+- Historical RAG similarity is contextual guidance, not current-case evidence.
+- Duplicate representations of the same EVTX source are not treated as independent corroboration.
+- Missing artifact families are valid capability states and should not automatically fail a case.
 
-A smaller local Qwen model performs structured triage of findings and determines whether additional deep analysis is required.
+## Deterministic Telemetry
 
-### Deep Investigation
+V2 adds early deterministic host intelligence, including supported fields such as:
 
-Higher-priority or escalated findings are processed by a larger local Qwen model using evidence-grounded investigation contexts.
+- Hostname
+- Operating system
+- Build
+- Time zone
+- Machine SID
+- Primary/local users
+- Network information when available
+- USB device information when available
+- SAM-derived account metadata
 
-The AI receives structured evidence references while the application preserves the original finding IDs, event_uids, and provenance outside the model-facing prompt.
+These facts are produced deterministically from current-case evidence and are not delegated to the LLM.
+
+## Correlation and Findings
+
+The platform correlates normalized forensic events into bounded investigation structures. Findings remain evidence-grounded and should be reviewed by a DFIR analyst.
+
+The system does **not** infer maliciousness from:
+
+- an executable name alone,
+- a detection title alone,
+- high Prefetch run count alone,
+- temporal proximity alone,
+- historical similarity alone.
+
+## Bounded Local AI
+
+V2 uses selective local inference instead of asking one model to read the entire case.
+
+```text
+HIGH / deep candidates   -> Qwen 8B selective investigation
+MEDIUM / fast candidates -> Qwen 4B fast analysis
+STORE_ONLY               -> no LLM
+```
+
+Local Qwen inference is designed to run sequentially on CPU-constrained systems.
 
 ## Historical DFIR RAG
 
-Historical incident reports can be indexed in Qdrant and retrieved as investigation context.
+Historical investigation knowledge may be retrieved to provide:
 
-The design intentionally separates historical knowledge from current-case evidence.
+- similar historical behavior,
+- investigative directions,
+- useful evidence to review,
+- contextual investigative experience.
 
-Historical similarity:
+It must **never** be treated as proof that the same behavior occurred in the current case.
 
-- does not create evidence,
-- does not modify current-case facts,
-- does not independently establish maliciousness,
-- and must not be treated as corroboration of the current investigation.
+Historical report corpora and private corpus-building material should not be committed to the public repository.
 
-The historical corpus itself is not distributed in this repository.
+## Final Report
 
-## Evidence Provenance
+V2 produces a deterministic DFIR report after case-level synthesis. Typical sections include:
 
-Normalized forensic records preserve unique event identifiers and source provenance.
+- Executive Summary
+- Evidence Coverage
+- Priority Evidence Themes
+- Evidence Timeline
+- Key Findings
+- Observed Facts
+- Possible Related Activity
+- Historical Context
+- Evidence Gaps
+- Recommended Next Steps
+- Analytical Conclusion
+- Evidence and Analytical Safeguards
 
-The investigation pipeline is designed so that findings, correlation results, investigation contexts, and reporting can be traced back to underlying evidence records.
+## Quick Start
 
-## Validated Pipeline Results
+### Requirements
 
-The current pipeline has been validated against publicly available DFIR training evidence.
+The current development environment is Windows-focused and uses local tooling.
 
-One fresh E01 validation produced:
+Typical requirements include:
 
-- 1,788,878 normalized evidence events
-- 1,788,878 unique event_uids
-- 1,788,878 provenance records
-- 1,054 correlation edges
-- 1,036 core clusters
-- 2 candidate cross-artifact clusters
-- 45 findings
-- SQLite integrity check: OK
-- Foreign-key errors: 0
+- Windows 10/11
+- Python environment for the DFIR-AI MCP modules
+- Docker for local supporting services where used
+- Ollama
+- Qwen local models used by the configured workflow
+- Qdrant for historical DFIR RAG
+- Required forensic parsers/tools configured for the selected acquisition profile
 
-Historical DFIR experience retrieval was also validated with:
+Tool licenses and redistribution terms must be reviewed separately. Do not commit third-party forensic binaries unless their licenses explicitly allow redistribution.
 
-- The DFIR Report: 1,430 indexed records
-- Mandiant: 366 indexed records
-- Total Qdrant points: 1,796
-- Retrieval testing across 20 realistic DFIR scenarios
+### Run a Full Case
 
-These figures represent development validation results and are not performance guarantees.
+From the MCP environment:
 
-## Repository Scope
+```powershell
+python .\run_full_case_v1.py `
+  --case CASE-DEMO-001 `
+  --image "D:\Evidence\example.E01"
+```
 
-V0.1 contains selected sanitized production source code demonstrating:
+Optional profile:
 
-- forensic evidence handling
-- normalization
-- evidence database construction
-- deterministic correlation
-- evidence clustering
-- finding generation
-- investigation-context preparation
-- local AI triage
-- selective deep investigation
-- RAG enrichment
-- deterministic synthesis
-- final report generation
+```powershell
+python .\run_full_case_v1.py `
+  --case CASE-DEMO-001 `
+  --image "D:\Evidence\example.E01" `
+  --profile windows_standard
+```
 
-The repository intentionally excludes:
+### Resume an Existing Case
 
-- forensic evidence images
-- investigation workspaces
-- case databases
-- client or company data
-- Qdrant storage
-- local AI models
-- downloaded historical DFIR reports
-- third-party forensic binaries
-- credentials and local configuration
-- development backups and migration utilities
+If collection/parsing/import already completed, use the case orchestrator rather than starting the full acquisition path again:
 
-## Security and Privacy
+```powershell
+python .\run_case_v2.py --case CASE-DEMO-001
+```
 
-This public repository is prepared from a separate sanitized staging environment.
+### Start the Dashboard
 
-The private development project is not published directly.
+```powershell
+python .\dashboard\web\dashboard_server.py
+```
 
-Before release, source files are reviewed for:
+Then open:
 
-- hard-coded local paths
-- case-specific regression data
-- usernames
-- email addresses
-- credentials and tokens
-- private IP addresses
-- internal domains and hostnames
-- evidence paths
-- client or company identifiers
-- embedded private test data
-- copyrighted historical report content
+```text
+http://127.0.0.1:8765/
+```
 
-## Evidence Used for Development Testing
+## Repository Safety
 
-Development testing uses publicly available DFIR training and challenge evidence, including CyberDefenders material.
+The public repository must not contain:
 
-Challenge evidence files are not redistributed by this repository. Users should obtain training evidence directly from the original provider.
+- forensic evidence images,
+- real case workspaces,
+- generated case databases,
+- real telemetry exports,
+- generated DFIR reports containing case data,
+- API keys or tokens,
+- `.env` files,
+- private keys,
+- local AI model files,
+- Qdrant databases,
+- historical report corpora,
+- local development backups,
+- user-profile paths or organization-specific internal data.
 
-## Project Status
+Run the V2 release audit before every public push.
 
-DFIR-AI is under active development.
+## Release
 
-V0.1 is intended to demonstrate the forensic architecture, evidence-grounding model, local AI integration, RAG design, and automated investigation workflow.
+Current release target: **v2.0.0**
 
-It should not be treated as a replacement for qualified forensic analysis or analyst validation.
+See [CHANGELOG.md](CHANGELOG.md) for release details.
 
-## License
+---
 
-License information will be added before the public V0.1 release.
+### Analyst Validation Disclaimer
+
+**AI-assisted forensic investigation; analyst validation required. Original evidence remains read-only.**
+
+DFIR-AI is intended to assist qualified DFIR practitioners. AI output, automated correlations, findings, timelines, and recommendations must be validated against the referenced current-case evidence before being treated as final.
+
+---
+
+Built for DFIR investigation workflows.
+
+**Alaa Sikingo**

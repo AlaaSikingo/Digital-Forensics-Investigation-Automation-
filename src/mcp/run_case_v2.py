@@ -7,9 +7,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-WORKSPACE_ROOT = (Path(__file__).resolve().parents[2] / "workspace")
-MCP_ROOT = Path(__file__).resolve().parent
-RAG_ROOT = (Path(__file__).resolve().parents[1] / "rag")
+WORKSPACE_ROOT = Path(str(__import__("pathlib").Path(__file__).resolve().parents[2] / "workspace"))
+MCP_ROOT = Path(str(__import__("pathlib").Path(__file__).resolve().parents[2] / "src" / "mcp"))
+RAG_ROOT = Path(str(__import__("pathlib").Path(__file__).resolve().parents[2] / "rag"))
 
 PYTHON = (
     MCP_ROOT
@@ -240,7 +240,7 @@ def bootstrap_existing_case():
 
     # --------------------------------------------------------
     # Important:
-    # Existing completed cases must NEVER be reprocessed
+    # Existing completed CASE-001 must NEVER be reprocessed
     # simply because stage markers did not previously exist.
     # --------------------------------------------------------
 
@@ -490,7 +490,7 @@ SYNTHESIS_DETERMINISTIC = (
 FINAL_REPORT = (
     CASE_DIR
     / "report"
-    / f"{CASE}_DFIR_Report.md"
+    / f"{CASE}_DFIR_Report_V2.md"
 )
 
 
@@ -539,6 +539,39 @@ run_stage(
     MCP_ROOT,
     STATE_DIR
     / "finish_normalization.json",
+    args.dry_run,
+)
+
+
+# ============================================================
+# EARLY DETERMINISTIC FORENSIC TELEMETRY
+# ============================================================
+
+run_stage(
+    "System telemetry",
+    MCP_ROOT
+    / "system_telemetry_v1.py",
+    [
+        "--case",
+        CASE,
+    ],
+    MCP_ROOT,
+    STATE_DIR
+    / "system_telemetry.json",
+    args.dry_run,
+)
+
+run_stage(
+    "SAM telemetry",
+    MCP_ROOT
+    / "sam_telemetry_v1.py",
+    [
+        "--case",
+        CASE,
+    ],
+    MCP_ROOT,
+    STATE_DIR
+    / "sam_telemetry.json",
     args.dry_run,
 )
 
@@ -658,7 +691,7 @@ run_stage(
 
 
 # ============================================================
-# STAGE 8 - QWEN 4B
+# STAGE 8 - QWEN 4B FAST TRIAGE
 # ============================================================
 
 if args.skip_ai:
@@ -686,7 +719,37 @@ else:
 
 
 # ============================================================
-# STAGE 9 - SELECTIVE QWEN 8B
+# STAGE 9 - RAG ENRICHMENT
+# ============================================================
+
+run_rag(
+    STATE_DIR
+    / "rag.json",
+    args.dry_run,
+)
+
+
+# ============================================================
+# STAGE 10 - RAG-AWARE DEEP PREPARATION
+# ============================================================
+
+run_stage(
+    "Prepare deep analysis",
+    MCP_ROOT
+    / "prepare_rag_aware_deep_v1.py",
+    [
+        "--case",
+        CASE,
+    ],
+    MCP_ROOT,
+    STATE_DIR
+    / "prepare_deep.json",
+    args.dry_run,
+)
+
+
+# ============================================================
+# STAGE 11 - SELECTIVE QWEN 8B
 # ============================================================
 
 if args.skip_ai:
@@ -714,18 +777,7 @@ else:
 
 
 # ============================================================
-# STAGE 10 - RAG
-# ============================================================
-
-run_rag(
-    STATE_DIR
-    / "rag.json",
-    args.dry_run,
-)
-
-
-# ============================================================
-# STAGE 11 - SYNTHESIS PREPARATION
+# STAGE 12 - SYNTHESIS PREPARATION
 # ============================================================
 
 run_stage(
@@ -744,7 +796,7 @@ run_stage(
 
 
 # ============================================================
-# STAGE 12 - DETERMINISTIC SYNTHESIS
+# STAGE 13 - DETERMINISTIC SYNTHESIS
 # ============================================================
 
 run_stage(
@@ -763,13 +815,13 @@ run_stage(
 
 
 # ============================================================
-# STAGE 13 - FINAL REPORT
+# STAGE 14 - FINAL REPORT
 # ============================================================
 
 run_stage(
     "Final report",
     MCP_ROOT
-    / "generate_final_report_v1.py",
+    / "generate_final_report_v2.py",
     [
         "--case",
         CASE,

@@ -1,9 +1,11 @@
-﻿import argparse
+import argparse
 import json
 from pathlib import Path
 
 
-WORKSPACE_ROOT = (Path(__file__).resolve().parents[2] / "workspace")
+WORKSPACE_ROOT = Path(
+    str(__import__("pathlib").Path(__file__).resolve().parents[2] / "workspace")
+)
 
 
 def read_json(path):

@@ -6,12 +6,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-MCP_ROOT = Path(__file__).resolve().parent
-WORKSPACE_ROOT = (Path(__file__).resolve().parents[2] / "workspace")
+MCP_ROOT = Path(str(__import__("pathlib").Path(__file__).resolve().parents[2] / "src" / "mcp"))
+WORKSPACE_ROOT = Path(str(__import__("pathlib").Path(__file__).resolve().parents[2] / "workspace"))
 
 
 from policy import validate_case_id
-from triage_collector import collect_triage_artifacts
+from evidence_input_v1 import (
+    dispatch_collection,
+    write_case_capabilities,
+    available_import_sources,
+)
 from triage_parser import parse_triage_artifacts
 from evidence_db import (
     create_evidence_db,
@@ -19,12 +23,153 @@ from evidence_db import (
 )
 from evidence_importer import import_evidence_source
 
+import json
 
-SOURCES = (
-    "mftecmd",
-    "evtxecmd",
-    "pecmd",
-)
+
+def load_existing_collection_result(
+    case_dir,
+):
+    """
+    Recover a completed/usable collection from its
+    provenance manifest without re-reading or modifying
+    original evidence.
+
+    This is container-agnostic and is used only when
+    extracted triage evidence already exists.
+    """
+
+    provenance = (
+        case_dir
+        / "provenance"
+    )
+
+    triage = (
+        case_dir
+        / "triage"
+    )
+
+    if not provenance.is_dir():
+        return None
+
+    if not triage.is_dir():
+        return None
+
+    triage_files = [
+        p
+        for p in triage.rglob("*")
+        if p.is_file()
+    ]
+
+    if not triage_files:
+        return None
+
+    candidates = []
+
+    for pattern in (
+        "*manifest*.json",
+        "*.json",
+    ):
+
+        for candidate in provenance.glob(
+            pattern
+        ):
+
+            if (
+                candidate.is_file()
+                and candidate
+                not in candidates
+            ):
+                candidates.append(
+                    candidate
+                )
+
+    for candidate in candidates:
+
+        try:
+
+            payload = json.loads(
+                candidate.read_text(
+                    encoding="utf-8-sig"
+                )
+            )
+
+        except Exception:
+            continue
+
+        if not isinstance(
+            payload,
+            dict
+        ):
+            continue
+
+        artifact_count = payload.get(
+            "artifact_count"
+        )
+
+        if artifact_count is None:
+
+            artifacts = payload.get(
+                "artifacts"
+            )
+
+            if isinstance(
+                artifacts,
+                list
+            ):
+
+                artifact_count = len(
+                    artifacts
+                )
+
+        if not artifact_count:
+            continue
+
+        failure_count = payload.get(
+            "failure_count"
+        )
+
+        if failure_count is None:
+
+            failures = payload.get(
+                "failures"
+            )
+
+            if isinstance(
+                failures,
+                list
+            ):
+
+                failure_count = len(
+                    failures
+                )
+
+            else:
+
+                failure_count = 0
+
+        return {
+            "success": True,
+            "status":
+                "RECOVERED_EXISTING_COLLECTION",
+            "artifact_count":
+                int(artifact_count),
+            "failure_count":
+                int(failure_count or 0),
+            "manifest":
+                str(candidate),
+            "triage_directory":
+                str(triage),
+            "original_evidence_modified":
+                False,
+            "resumed":
+                True,
+        }
+
+    return None
+
+
+
+SOURCES = None
 
 
 def utc_now():
@@ -248,12 +393,30 @@ if marker_complete(
 
 else:
 
-    result = collect_triage_artifacts(
-        str(IMAGE),
-        CASE,
-        PROFILE,
+    existing_collection = load_existing_collection_result(
+        CASE_DIR
     )
 
+    if existing_collection:
+
+        result = existing_collection
+
+        print(
+            'Collection: RESUME '
+            '(existing triage evidence)'
+        )
+
+        print(
+            'Artifacts: '
+            f"{result.get('artifact_count', 0)}"
+        )
+
+    else:
+        result = dispatch_collection(
+        image_path=str(IMAGE),
+        case_id=CASE,
+        profile=PROFILE,
+        )
     if not result.get(
         "success"
     ):
@@ -442,16 +605,63 @@ else:
 
     import_results = {}
 
+    import_sources = (
+        available_import_sources(
+            CASE_DIR
+        )
+    )
+
     for number, source in enumerate(
-        SOURCES,
+        import_sources,
         start=1,
     ):
 
         print()
         print(
-            f"[{number}/{len(SOURCES)}] "
+            f"[{number}/{len(import_sources)}] "
             f"Importing {source}..."
         )
+
+        #
+        # Optional parser outputs.
+        #
+        # Missing artifact families are evidence gaps, not
+        # case-level failures. Only import sources that actually
+        # produced parser output.
+        #
+        if source == "evtxecmd":
+
+            evtx_dir = (
+                CASE_DIR
+                / "parsed"
+                / "evtxecmd"
+            )
+
+            evtx_outputs = [
+                p
+                for p in evtx_dir.rglob("*.csv")
+                if p.is_file()
+            ] if evtx_dir.is_dir() else []
+
+            if not evtx_outputs:
+
+                print(
+                    "evtxecmd: SKIP "
+                    "(no EVTX evidence)"
+                )
+
+                import_results[source] = {
+                    "status":
+                        "SKIPPED_NO_SOURCE",
+
+                    "normalized_events_inserted":
+                        0,
+
+                    "source_rows_processed":
+                        0,
+                }
+
+                continue
 
         if source == "pecmd":
 
@@ -472,7 +682,7 @@ else:
                         "_timeline.csv"
                     )
                 )
-            ]
+            ] if pecmd_dir.is_dir() else []
 
             if not pecmd_outputs:
 
@@ -579,6 +789,25 @@ else:
     )
 
     print()
+    capabilities_path = (
+        write_case_capabilities(
+            case_id=CASE,
+            image_path=IMAGE,
+            case_dir=CASE_DIR,
+            collection_result=(
+                collection_result
+                if "collection_result"
+                in globals()
+                else None
+            ),
+        )
+    )
+
+    print(
+        "Case capabilities: "
+        f"{capabilities_path}"
+    )
+
     print(
         f"Base import: COMPLETE"
     )
